@@ -1,0 +1,100 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ORGANIZATION_ID}}-auth-keycloak-app
+  labels:
+    app: {{ORGANIZATION_ID}}-auth-keycloak-app
+spec:
+  selector:
+    app: {{ORGANIZATION_ID}}-auth-keycloak-app
+  ports:
+    - name: http
+      port: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ORGANIZATION_ID}}-auth-keycloak-app
+  labels:
+    app: {{ORGANIZATION_ID}}-auth-keycloak-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ORGANIZATION_ID}}-auth-keycloak-app
+  template:
+    metadata:
+      labels:
+        app: {{ORGANIZATION_ID}}-auth-keycloak-app
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: nodepool
+                    operator: In
+                    values:
+                      - {{NODEPOOL}}
+      containers:
+        - name: {{ORGANIZATION_ID}}-auth-keycloak-app
+          image: quay.io/keycloak/keycloak:20.0.3
+          args: ['start-dev']
+          # args: ["start"]
+          # args: ["show-config"]
+          # args: ["start --optimized"]
+          # --db ${DB_VENDOR} --db-url-host ${DB_ADDR} --db-username ${DB_USER} --db-password ${DB_PASSWORD}
+          env:
+            # Keycloak admin credentials
+            - name: KEYCLOAK_ADMIN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ORGANIZATION_ID}}-auth-keycloak-secrets
+                  key: admin-user
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ORGANIZATION_ID}}-auth-keycloak-secrets
+                  key: admin-password
+            # Keycloak database configuration
+            # TODO move to ConfigMap
+            - name: KC_DB #DB_VENDOR
+              value: postgres
+            - name: KC_DB_URL_HOST #DB_ADDR
+              value: {{ORGANIZATION_ID}}-auth-keycloak-postgresql
+            - name: KC_DB_URL_PORT #DB_PORT
+              value: '5432'
+            - name: KC_DB_URL_DATABASE #DB_DATABASE
+              value: keycloak
+            - name: KC_DB_SCHEMA #DB_SCHEMA
+              value: public
+            # Keycloak database credentials
+            - name: KC_DB_USERNAME #DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ORGANIZATION_ID}}-auth-keycloak-secrets
+                  key: postgresql-user
+            - name: KC_DB_PASSWORD #DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ORGANIZATION_ID}}-auth-keycloak-secrets
+                  key: postgresql-password
+            # Keycloak app configuration
+            - name: KC_PROXY
+              value: 'edge'
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /realms/master
+              port: 8080
+          volumeMounts:
+          - mountPath: /opt/keycloak/providers
+            name: keycloak-providers-volume
+      volumes:
+      - name: keycloak-providers-volume
+        hostPath:
+          path: /mnt/data/{{ORGANIZATION_ID}}/auth/keycloak/providers
+          type: DirectoryOrCreate

@@ -1,0 +1,5 @@
+{"_id":{"$oid":"64c3cb8ff04e0602765270ca"},"tag_id":"configuration_1690553231869","name":"Configuration","description":"A snapshot that's on configuration","system":true,"unique":false,"organization_id":null,"type":5}
+{"_id":{"$oid":"64c3cbb5f06129027588d46b"},"tag_id":"source_1690553269075","name":"Source","description":"The source snapshot","system":true,"unique":true,"organization_id":null,"type":1}
+{"_id":{"$oid":"64c3cbc99d83dc027d625bf0"},"tag_id":"prod_1690553289436","name":"Prod","description":"The production snapshot","system":true,"unique":true,"organization_id":null,"type":2}
+{"_id":{"$oid":"64c3cbea105fde026f483b50"},"tag_id":"ready_1690553322033","name":"Ready","description":"A snapshot that's ready for production","system":true,"unique":false,"organization_id":null,"type":3}
+{"_id":{"$oid":"64c3cc01f06129027588d46c"},"tag_id":"valid_1690553345912","name":"Valid","description":"A snapshot that's been validated","system":true,"unique":false,"organization_id":null,"type":4}

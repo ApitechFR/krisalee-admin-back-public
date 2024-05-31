@@ -1,0 +1,4 @@
+{"_id":{"$oid":"642d2cc8f7217438713a93d6"},"name":"mode1","notify_users":true,"notify_only_admin":true,"force_new_password":true,"organization_ids":["apitech","apitech"],"mode_id":"mode1"}
+{"_id":{"$oid":"642d7922748eb000203daf22"},"name":"production","notify_users":true,"notify_only_admin":true,"force_new_password":true,"organization_ids":["apitech","apitech"],"mode_id":"production_1680701730223"}
+{"_id":{"$oid":"6436a6f8814a1200fc28c1b8"},"name":"TEST","notify_users":true,"notify_only_admin":true,"force_new_password":true,"organization_ids":["apitech","apitech"],"mode_id":"TEST_1681303288017"}
+{"_id":{"$oid":"64941a52241720af61a1538d"},"name":"Mode0","notify_users":true,"notify_only_admin":true,"force_new_password":true,"organization_ids":["apitech","apitech"],"mode_id":"mode0"}

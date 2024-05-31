@@ -1,0 +1,3 @@
+{"_id":{"$oid":"642d7674748eb000203daf1c"},"name":"GG","is_root":false,"organization_id":"gg"}
+{"_id":{"$oid":"642d764a748eb000203daf1b"},"name":"Apitech","is_root":true,"organization_id":"apitech-root"}
+{"_id":{"$oid":"64941a7c241720af61a1538f"},"name":"Apitech DEV","is_root":false,"organization_id":"apitech"}

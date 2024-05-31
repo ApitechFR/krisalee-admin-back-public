@@ -1,0 +1,45 @@
+#Add service
+POST http://localhost:3000/api/organization/1/service
+content-type: application/json
+
+{
+    "name": "Service2",
+    "status": 0
+}
+
+###
+
+
+#Get All services
+GET http://localhost:3000/api/organization/1/service
+
+###
+
+
+#Get service by Id
+GET http://localhost:3000/api/organization/1/service/service 1
+
+###
+
+
+#Update a service by Id
+PATCH  http://localhost:3000/api/organization/1/service/service 1
+content-type: application/json
+
+{
+ "name": "Nextcloud",
+ "status": 1
+}
+
+###
+
+
+#Get Organization by Id
+GET http://localhost:3000/api/organization/Org 4_1678292871280
+
+
+###
+
+
+#Get Many Organizations by Ids
+GET http://localhost:3000/api/organization/many/Org 4_1678292871280,Org 1_1678293272289

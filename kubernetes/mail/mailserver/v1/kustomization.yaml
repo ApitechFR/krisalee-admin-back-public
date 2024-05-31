@@ -1,0 +1,12 @@
+resources:
+  # Mailserver
+  - mailserver/secrets.yaml
+  - mailserver/configmaps.yaml
+  - mailserver/app.yaml
+  # Chargement du webmail :
+  - roundcube/secrets.yaml
+  - roundcube/configmaps.yaml
+  - roundcube/postgresql.yaml
+  - roundcube/app.yaml
+  - roundcube/nginx.yaml
+  

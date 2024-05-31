@@ -1,0 +1,15 @@
+FROM node:18.15-bullseye
+
+# Create app directory
+WORKDIR /usr/src/app
+
+# Install node_modules
+RUN npm i -D @compodoc/compodoc
+
+# Bundle app source
+COPY . .
+
+EXPOSE 8080
+
+#run the project
+CMD [ "npx", "@compodoc/compodoc", "-p", "tsconfig.json", "-s" ]

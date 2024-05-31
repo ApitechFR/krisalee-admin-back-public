@@ -1,0 +1,93 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ORGANIZATION_ID}}-drive-nextcloud-app
+  labels:
+    app: {{ORGANIZATION_ID}}-drive-nextcloud-app
+spec:
+  selector:
+    app: {{ORGANIZATION_ID}}-drive-nextcloud-app
+  ports:
+  - name: http
+    port: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ORGANIZATION_ID}}-drive-nextcloud-app
+  labels:
+    app: {{ORGANIZATION_ID}}-drive-nextcloud-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ORGANIZATION_ID}}-drive-nextcloud-app
+  template:
+    metadata:
+      labels:
+        app: {{ORGANIZATION_ID}}-drive-nextcloud-app
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nodepool
+                operator: In
+                values:
+                - {{NODEPOOL}}
+      containers:
+        - name: {{ORGANIZATION_ID}}-drive-nextcloud-app
+          image: {{REGISTRY_URL}}/library/nextcloud:27.1.4-apache
+          env:
+            # # Nextcloud admin credentials
+            # NOT WORKING, @see https://github.com/nextcloud/docker/issues/1360
+            # - name: NEXTCLOUD_ADMIN_USER
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: nextcloud-secrets
+            #       key: admin-user
+            # - name: NEXTCLOUD_ADMIN_PASSWORD
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: nextcloud-secrets
+            #       key: admin-password
+            # Nextcloud app configuration
+            - name: OVERWRITEPROTOCOL
+              value: https
+            - name: TRUSTED_PROXIES
+              value: krisalee.fr
+            - name: NEXTCLOUD_TRUSTED_DOMAINS
+              value: drive.krisalee.fr
+            # Nextcloud database configuration
+            # - name: REDIS_HOST
+            #   value: redis
+            - name: MYSQL_HOST
+              value: {{ORGANIZATION_ID}}-drive-nextcloud-mariadb
+            - name: MYSQL_PORT
+              value: "3306"
+            - name: MYSQL_DATABASE
+              value: nextcloud
+            # Nextcloud database credentials
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ORGANIZATION_ID}}-drive-nextcloud-secrets
+                  key: mariadb-user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ORGANIZATION_ID}}-drive-nextcloud-secrets
+                  key: mariadb-password
+          ports:
+            - name: http
+              containerPort: 80
+          volumeMounts:
+            - mountPath: /var/www/html
+              name: nextcloud-storage
+      volumes:
+        - name: nextcloud-storage
+          hostPath:
+            path: /mnt/data/{{ORGANIZATION_ID}}/drive/www
+            type: DirectoryOrCreate

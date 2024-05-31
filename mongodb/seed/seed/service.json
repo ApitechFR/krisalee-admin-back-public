@@ -1,0 +1,6 @@
+{"_id":{"$oid":"643570647f3790015ca1d52c"},"name":"Drive","description":"Document Service","service_id":"drive","create_date":{"$date":"2023-04-11T15:36:20.651Z"},"update_date":{"$date":"2023-04-12T15:22:23.657Z"}}
+{"_id":{"$oid":"6437add036dfb50020e4ded1"},"name":"Mail","description":"Mail Service","service_id":"mail","create_date":{"$date":"2023-04-13T08:22:56.099Z"},"update_date":{"$date":"2023-04-14T08:56:56.339Z"}}
+{"_id":{"$oid":"642d7747748eb000203daf1f"},"name":"Site Externe","service_id":"extranet","description":"Le Site Interne","create_date":{"$date":"2023-04-05T13:27:35.905Z"},"update_date":{"$date":"2023-05-03T11:11:13.081Z"}}
+{"_id":{"$oid":"642d76f2748eb000203daf1d"},"name":"Authentification","service_id":"auth","description":"Service Authentification","create_date":{"$date":"2023-04-05T13:26:10.655Z"},"update_date":{"$date":"2023-05-03T11:09:44.998Z"}}
+{"_id":{"$oid":"6437add036dfb50020e4ded9"},"name":"Site Interne","description":"Le site Externe","service_id":"intranet","create_date":{"$date":"2023-04-13T08:22:56.099Z"},"update_date":{"$date":"2023-04-14T08:56:56.339Z"}}
+{"_id":{"$oid":"6437add036dfb50020e4ded2"},"name":"Frontal","description":"some description","service_id":"frontal","create_date":{"$date":"2023-04-13T08:22:56.099Z"},"update_date":{"$date":"2023-05-03T11:11:13.081Z"}}

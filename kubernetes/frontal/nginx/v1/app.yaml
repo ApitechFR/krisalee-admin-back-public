@@ -1,0 +1,80 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ORGANIZATION_ID}}-frontal-nginx-app
+spec:
+  selector:
+    matchLabels:
+      app: {{ORGANIZATION_ID}}-frontal-nginx-app
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: {{ORGANIZATION_ID}}-frontal-nginx-app
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nodepool
+                operator: In
+                values:
+                - {{NODEPOOL}}
+      containers:
+      - name: nginx
+        image: {{REGISTRY_URL}}/library/nginx:1.23.3
+        ports:
+        - containerPort: 80
+        - containerPort: 443
+        - containerPort: 25
+        - containerPort: 465
+        - containerPort: 587
+        - containerPort: 993
+        volumeMounts:
+        - mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+          readOnly: true
+          name: nginx-conf
+        - mountPath: /etc/nginx/conf.d
+          readOnly: true
+          name: nginx-http-conf
+        - mountPath: /etc/nginx/ssl
+          name: letsencrypt-persistent-storage
+        - mountPath: /var/www/letsencrypt
+          name: letsencrypt-acme-challenge-persistent-storage
+      volumes:
+      - name: nginx-conf
+        configMap:
+          name: {{ORGANIZATION_ID}}-frontal-nginx-configmap
+      - name: nginx-http-conf
+        configMap:
+          name: {{ORGANIZATION_ID}}-frontal-nginx-http-configmap
+          items:
+            - key: default_http.conf
+              path: default_http.conf
+            - key: home.conf
+              path: home.conf
+            - key: intranet.conf
+              path: intranet.conf
+            - key: extranet.conf
+              path: extranet.conf
+            - key: roundcube.conf
+              path: roundcube.conf
+            - key: keycloak.conf
+              path: keycloak.conf
+            - key: nextcloud.conf
+              path: nextcloud.conf
+            - key: onlyoffice.conf
+              path: onlyoffice.conf
+            - key: chat.conf
+              path: chat.conf
+      - name: letsencrypt-persistent-storage
+        hostPath:
+          path: /mnt/data/{{ORGANIZATION_ID}}/frontal/letsencrypt/
+          type: DirectoryOrCreate
+      - name: letsencrypt-acme-challenge-persistent-storage
+        hostPath:
+          path: /tmp/letsencrypt-acme-challenge
+          type: DirectoryOrCreate

@@ -1,0 +1,5 @@
+resources:
+  - nextcloud/secrets.yaml
+  - nextcloud/mariadb.yaml
+  - nextcloud/app.yaml
+  - onlyoffice/app.yaml

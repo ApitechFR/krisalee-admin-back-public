@@ -1,0 +1,50 @@
+version: '3'
+
+volumes:
+  # Scope : clients
+  data-dev:
+    driver: local
+  sftp-dev:
+    driver: local
+
+services:
+  ssh-dev:
+    env_file: ./.env
+    restart: always
+    build:
+      dockerfile: Dockerfile
+      context: ../../openssh
+    container_name: ssh-dev
+    ports:
+      - $HOST_DATA_SSH_PORT:2222
+    command:
+      - /bin/sh
+      - -c
+      - apk add rsync;
+        apk add --no-cache openssh;
+        ssh-keygen -A;
+        ssh-keygen -t ed25519 -f /root/.ssh/id_ed25519 -N '';
+        cat /root/.ssh/id_ed25519.pub > /root/.ssh/authorized_keys;
+        rm -R $DATA_PATH/dev/ssh;
+        cp -a /root/.ssh $DATA_PATH/dev/ssh;
+        /usr/sbin/sshd -D -p 2222;
+    volumes:
+      - data-dev:$DATA_PATH/dev
+
+  sftp-dev:
+    env_file: ./.env
+    restart: always
+    image: atmoz/sftp
+    container_name: sftp-dev
+    volumes:
+        # users
+        - sftp-dev:/home/x_admin_sftp/upload
+        - sftp-dev:/home/d_user_sftp/upload
+        - sftp-dev:/home/cm_user_sftp/upload
+        - sftp-dev:/home/td_user_sftp/upload
+        # config
+        - ./users-sftp.conf:/etc/sftp/users.conf:ro
+        - ./users-sftp.sh:/etc/sftp.d/users-sftp.sh:ro
+    ports:
+        - $SFTP_PORT:22
+

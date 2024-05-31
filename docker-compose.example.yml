@@ -1,0 +1,149 @@
+version: '3.3'
+
+include:
+  - ./client/<ORG_ID>/docker-compose.yml
+
+volumes:
+  # Scope : Admin
+  mongodb_data_container:
+    driver: local
+  postgres_data:
+    driver: local
+  registry_data:
+    driver: local
+  registry-custom-image_data:
+    driver: local
+
+services:
+
+  # Admin Panel - Database
+  mongo:
+    env_file: ./.env
+    build:
+      dockerfile: Dockerfile
+      context: ./mongodb
+    container_name: mongo
+    restart: always
+    # command: mongoimport --authenticationDatabase=admin --username=$DB_USERNAME --password=$DB_PASSWORD -c=service -d=$DB_NAME --file=services --drop
+    ports:
+      - 27017:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: $DB_USERNAME
+      MONGO_INITDB_ROOT_PASSWORD: $DB_PASSWORD
+    volumes:
+      - mongodb_data_container:/data/db
+
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: $DB_USERNAME
+      ME_CONFIG_MONGODB_ADMINPASSWORD: $DB_PASSWORD
+      ME_CONFIG_MONGODB_URL: "mongodb://$DB_USERNAME:$DB_PASSWORD@mongo:27017/"
+    depends_on:
+      - mongo
+
+  # Admin Panel - Front
+  frontend:
+    env_file: ./.env
+    restart: always
+    container_name: krisalee-frontend
+    image: krisalee-frontend:latest
+    ports:
+      - 8083:8080
+
+  # Admin Panel - Back
+  backend:
+    env_file: ./.env
+    restart: always
+    build:
+      dockerfile: Dockerfile
+      context: .
+    image: krisalee-backend:latest
+    container_name: krisalee-backend
+    # Needed to access SFTP through 127.0.0.1
+    extra_hosts:
+      # - host.docker.internal:host-gateway
+      - $SFTP_HOST:host-gateway
+    ports:
+      - 3000:3000
+    depends_on:
+      - mongo
+      - ssh-dev
+    volumes:
+      - data-dev:$DATA_PATH/dev
+      - $DIR/node_modules
+      - $PWD:/usr/src/app
+
+  # Admin Auth - Database
+  postgres:
+    restart: always
+    image: postgres:15.3
+    container_name: keycloak-postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: 
+      POSTGRES_PASSWORD: 
+
+  # Admin Auth - Keycloak
+  keycloak:
+    restart: always
+    image: quay.io/keycloak/keycloak:21.1.1
+    container_name: keycloak
+    command:
+      - start-dev
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres
+      KC_DB_URL_PORT: 5432
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_SCHEMA: public
+      KC_DB_USERNAME: 
+      KC_DB_PASSWORD: 
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: 
+      PROXY_ADDRESS_FORWARDING: "true"
+      REDIRECT_SOCKET: "proxy-https"
+      KEYCLOAK_FRONTEND_URL: $KC_URL
+      KC_PROXY: "edge"
+    ports:
+      - 8080:8080
+    depends_on:
+      - postgres
+
+
+  # DockerHub Mirror
+  registry:
+    restart: always
+    image: registry:2
+    container_name: registry
+    environment:
+      REGISTRY_PROXY_REMOTEURL: https://registry-1.docker.io
+      REGISTRY_AUTH: htpasswd
+      REGISTRY_AUTH_HTPASSWD_PATH: /auth/htpasswd
+      REGISTRY_AUTH_HTPASSWD_REALM: Registry Realm
+    ports:
+      - 5000:5000
+    volumes:
+      - registry_data:/var/lib/registry
+      - ./registry/credentials:/auth/htpasswd
+
+  # Registry Apitech image
+  registry-custom-image:
+    restart: always
+    image: registry:2
+    container_name: registry-custom-image
+    environment:
+      REGISTRY_AUTH: htpasswd
+      REGISTRY_AUTH_HTPASSWD_PATH: /auth/htpasswd
+      REGISTRY_AUTH_HTPASSWD_REALM: Registry Realm
+    ports:
+      - 5001:5000
+    volumes:
+      - registry-custom-image_data:/var/lib/registry
+      - ./registry/credentials:/auth/htpasswd

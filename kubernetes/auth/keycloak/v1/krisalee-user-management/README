@@ -1,0 +1,52 @@
+
+Le projet est sur github :
+https://github.com/ApitechFR/krisalee-user-management-back/tree/krisalee
+https://github.com/ApitechFR/krisalee-user-management-front/tree/krisalee
+
+# Attention il y a 2 branches différentes krisalee et phenix
+
+Build l'image du front et du back:
+cd /opt/docker/krisalee-user-management-back
+docker compose build
+
+cd /opt/docker/krisalee-user-management-front
+docker compose build
+
+
+Se logguer sur la registry local :
+docker login krisalee-dev-01.apitech-krisalee:5001 --username dev
+
+Tagguer l'image précédemment build:
+docker tag krisalee-user-management-front-frontend:latest krisalee-dev-01.apitech-krisalee:5001/krisalee-user-management-front:1.0.0
+
+Push l'image dans notre registry local:
+docker push krisalee-dev-01.apitech-krisalee:5001/krisalee-user-management-front:1.0.0 
+
+# idem avec l'image du backend
+Tagguer l'image précédemment build:
+docker tag krisalee-user-management-back-backend:latest krisalee-dev-01.apitech-krisalee:5001/krisalee-user-management-back:1.0.0
+
+Push l'image dans notre registry local:
+docker push krisalee-dev-01.apitech-krisalee:5001/krisalee-user-management-back:1.0.0
+
+
+# Nous avons essayé via le port 443 et le reserve proxy nginx mais on obtient une erreur  : Unknow blob
+# docker login registry.dev.krisalee.fr
+# docker tag krisalee-user-management-front-frontend:latest registry.dev.krisalee.fr/krisalee-user-management-front:1.0.0
+# docker push registry.dev.krisalee.fr/krisalee-user-management-front:1.0.0
+
+
+# Sur k8s, il faut créer un nouveau secret et un nouveau service account. On précisera ce serviceaccount dans les images des pods ayant besoin d'image custom
+
+REG_SECRET_KEY=
+REG_SERVER_URL='registry-custom-image.dev.krisalee.fr'
+ORG_ID="dev"
+
+# Création d'un nouveau secret correspondant aux identifiants
+# TODO - Faut-il modifier l'url ? @see https://github.com/kubernetes/kubernetes/issues/57801#issuecomment-520712243
+kubectl create secret docker-registry ${REG_SECRET_KEY} --docker-server=${REG_SERVER_URL} --docker-username='USERNAME' --docker-password='' --docker-email="k8s@${REG_SERVER_URL}" --namespace='${ORG_ID}'
+
+kubectl create serviceaccount registry-custom-image
+
+# Modification du 'service account' par défaut pour utiliser ce secret en tant que 'imagePullSecret'
+kubectl patch serviceaccount registry-custom-image -p "{\"imagePullSecrets\": [{\"name\": \"${REG_SECRET_KEY}\"}]}"

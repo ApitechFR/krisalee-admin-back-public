@@ -1,0 +1,76 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ORGANIZATION_ID}}-intranet-wordpress-app
+  labels:
+    app: {{ORGANIZATION_ID}}-intranet-wordpress-app
+spec:
+  selector:
+    app: {{ORGANIZATION_ID}}-intranet-wordpress-app
+  ports:
+  - name: http
+    port: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ORGANIZATION_ID}}-intranet-wordpress-app
+  labels:
+    app: {{ORGANIZATION_ID}}-intranet-wordpress-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ORGANIZATION_ID}}-intranet-wordpress-app
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        app: {{ORGANIZATION_ID}}-intranet-wordpress-app
+        tier: frontend
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nodepool
+                operator: In
+                values:
+                - {{NODEPOOL}}
+      containers:
+      - image: {{REGISTRY_URL}}/library/wordpress:6.1.1-apache
+        name: wordpress
+        env:
+        - name: WORDPRESS_DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: {{ORGANIZATION_ID}}-intranet-wordpress-secrets
+              key: mariadb-host
+        - name: WORDPRESS_DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ORGANIZATION_ID}}-intranet-wordpress-secrets
+              key: mariadb-db
+        - name: WORDPRESS_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ORGANIZATION_ID}}-intranet-wordpress-secrets
+              key: mariadb-user
+        - name: WORDPRESS_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ORGANIZATION_ID}}-intranet-wordpress-secrets
+              key: mariadb-password
+        ports:
+        - containerPort: 80
+          name: wordpress
+        volumeMounts:
+        - name: {{ORGANIZATION_ID}}-intranet-wordpress-app-persistent-storage
+          mountPath: /var/www/html
+      volumes:
+        - name: {{ORGANIZATION_ID}}-intranet-wordpress-app-persistent-storage
+          hostPath:
+            path: /mnt/data/{{ORGANIZATION_ID}}/intranet/www
+            type: DirectoryOrCreate

@@ -1,0 +1,97 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ORGANIZATION_ID}}-auth-krisalee-user-management-back
+  labels:
+    app: {{ORGANIZATION_ID}}-auth-krisalee-user-management-back
+spec:
+  selector:
+    app: {{ORGANIZATION_ID}}-auth-krisalee-user-management-back
+  ports:
+    - name: http
+      port: 3000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ORGANIZATION_ID}}-auth-krisalee-user-management-back
+  labels:
+    app: {{ORGANIZATION_ID}}-auth-krisalee-user-management-back
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ORGANIZATION_ID}}-auth-krisalee-user-management-back
+  template:
+    metadata:
+      labels:
+        app: {{ORGANIZATION_ID}}-auth-krisalee-user-management-back
+    spec:
+      serviceAccountName: registry-custom-image
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: nodepool
+                    operator: In
+                    values:
+                      - {{NODEPOOL}}
+      containers:
+        - name: {{ORGANIZATION_ID}}-auth-krisalee-user-management-back
+          image: {{REGISTRY_CUSTOM_IMAGE_URL}}/krisalee-user-management-back:1.0.0
+          env:
+            - name: DIR
+              value: /usr/src/app
+            - name: KC_SERVICE_URL
+              value: https://auth.{{ORGANIZATION_ID}}.krisalee.fr
+            - name: KC_REALM
+              value: master
+            - name: KC_SERVICE_REALM
+              value: apitech
+            - name: KC_SERVICE_ADMIN_USERNAME
+              value: backend-krisalee
+            - name: KC_SERVICE_ADMIN_PASSWORD
+              value: xxx
+            - name: KC_SERVICE_ADMIN_CLIENT_ID
+              value: admin-cli
+            - name: KC_SERVICE_USER_CLIENT_ID
+              value: account
+            - name: FORGET_PASSWORD_REDIRECT_URI
+              value: https://website.{{ORGANIZATION_ID}}.krisalee.fr/
+
+            ### SMS
+            - name: OVH_SMS_APP_KEY
+              value: xxx
+            - name: OVH_SMS_APP_SECRET
+              value: xxx
+            - name: OVH_SMS_CONSUMER_KEY
+              value: xxx
+            - name: OVH_SMS_SENDER_NAME
+              value: APITECH
+
+            - name: ALERT_PROVIDER_TYPE
+              value: SMS
+            - name: ALERT_PROVIDER_NAME
+              value: Fake
+            #-name: ALERT_PROVIDER_NAME
+              #value: OVHCloud
+            - name: ALERT_MAX_COST
+              value: "4"
+
+            - name: SHORT_LINK_API_URL
+              value: https://auth.{{ORGANIZATION_ID}}.krisalee.fr/link
+            - name: SHORT_LINK_API_KEY
+              value: xxx
+
+
+
+      #     volumeMounts:
+      #     - mountPath: /opt/krisalee-user-management/providers
+      #       name: krisalee-user-management-providers-volume
+      # volumes:
+      # - name: krisalee-user-management-providers-volume
+      #   hostPath:
+      #     path: /mnt/data/{{ORGANIZATION_ID}}/auth/krisalee-user-management/providers
+      #     type: DirectoryOrCreate

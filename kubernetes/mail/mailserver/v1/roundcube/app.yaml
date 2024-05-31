@@ -1,0 +1,106 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ORGANIZATION_ID}}-mail-roundcube-app
+  labels:
+    service: {{ORGANIZATION_ID}}-mail-roundcube-app
+spec:
+  ports:
+  - port: 9000
+    protocol: TCP
+  selector:
+    service: {{ORGANIZATION_ID}}-mail-roundcube-app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ORGANIZATION_ID}}-mail-roundcube-app
+  labels:
+    service: {{ORGANIZATION_ID}}-mail-roundcube-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: {{ORGANIZATION_ID}}-mail-roundcube-app
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        service: {{ORGANIZATION_ID}}-mail-roundcube-app
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nodepool
+                operator: In
+                values:
+                - {{NODEPOOL}}
+      containers:
+      - name: {{ORGANIZATION_ID}}-mail-roundcube-app
+        image: {{REGISTRY_URL}}/roundcube/roundcubemail:1.6.1-fpm-alpine
+        imagePullPolicy: ""
+        env:
+        - name: ROUNDCUBEMAIL_DB_TYPE
+          value: pgsql
+        - name: ROUNDCUBEMAIL_DB_HOST
+          value: {{ORGANIZATION_ID}}-mail-roundcube-postgresql
+        - name: ROUNDCUBEMAIL_DB_NAME
+          value: roundcube
+        - name: ROUNDCUBEMAIL_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ORGANIZATION_ID}}-mail-roundcube-secrets
+              key: DB_USER
+        - name: ROUNDCUBEMAIL_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ORGANIZATION_ID}}-mail-roundcube-secrets
+              key: DB_PASSWORD
+        - name: ROUNDCUBEMAIL_DES_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ORGANIZATION_ID}}-mail-roundcube-secrets
+              key: DES_KEY
+        - name: ROUNDCUBEMAIL_DEFAULT_HOST
+          # value: tls://mail.gandi.net
+          # value: tls://mail.krisalee.joona.fr
+          value: {{ORGANIZATION_ID}}-mail-mailserver-app.default.svc.cluster.local
+        - name: ROUNDCUBEMAIL_DEFAULT_PORT
+          value: "143"
+        - name: ROUNDCUBEMAIL_SMTP_SERVER
+          # value: tls://mail.gandi.net
+          # value: tls://mail.krisalee.joona.fr
+          value: {{ORGANIZATION_ID}}-mail-mailserver-app.default.svc.cluster.local
+        - name: ROUNDCUBEMAIL_SMTP_PORT
+          value: "25"
+        - name: ROUNDCUBEMAIL_SKIN
+          value: elastic
+        - name: ROUNDCUBEMAIL_PLUGINS
+          value: archive,zipdownload,newmail_notifier
+        ports:
+        - containerPort: 9000
+        volumeMounts:
+        - mountPath: /var/www/html
+          name: www-data
+        - mountPath: /tmp/roundcube-temp
+          name: temp-data
+        - mountPath: /usr/local/etc/php/conf.d/zzz_roundcube-custom.ini
+          name: custom-php-ini
+          subPath: zzz_roundcube-custom.ini
+      restartPolicy: Always
+      volumes:
+      - name: www-data
+        hostPath:
+          path: /mnt/data/{{ORGANIZATION_ID}}/mail/www_roundcube
+          type: DirectoryOrCreate
+      - name: temp-data
+        hostPath:
+          path: /mnt/data/{{ORGANIZATION_ID}}/mail/temp_roundcube
+          type: DirectoryOrCreate
+      - name: custom-php-ini
+        configMap:
+          name: "{{ORGANIZATION_ID}}-mail-roundcube-nginx-config"

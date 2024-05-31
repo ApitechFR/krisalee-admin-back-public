@@ -1,0 +1,26 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+ name: load-balancer-mail
+spec:
+  ports:
+  - port: 25
+    name: smtp
+    protocol: TCP
+    targetPort: 25
+    nodePort: 30218
+  - port: 465
+    name: smtp-ssl
+    protocol: TCP
+    targetPort: 465
+    nodePort: 30219
+  - port: 587
+    name: smtps
+    protocol: TCP
+    targetPort: 587
+    nodePort: 30220
+  selector:
+      app: krisalee-mail-mailserver-app
+  type: LoadBalancer
+  externalTrafficPolicy: Local #Permet d'avoir l'IP du client

@@ -1,0 +1,4 @@
+Pour utiliser onlyoffice dans Nextcloud, il faut :
+- un domaine dédié pour onlyoffice : ex: onlyoffice.krisalee.dev.joona.fr
+- ajouter app dans nexcloud : "ONLYOFFICE"
+- configurer app "ONLYOFFICE" dans nextcloud : avec l'URL du onlyoffice et le token que l'on trouve dans le app.yaml

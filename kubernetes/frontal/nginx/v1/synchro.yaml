@@ -1,0 +1,51 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ORGANIZATION_ID}}-frontal-nginx-synchro-config
+data:
+  authorized_keys: |
+    ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKpUkw7jny96IxnpMsPgcgYLj+jIuuInUgSmviIkzsCw root@krisalee-control-dev
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ORGANIZATION_ID}}-frontal-nginx-synchro
+  labels:
+    app: {{ORGANIZATION_ID}}-frontal-nginx-synchro
+spec:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: nodepool
+            operator: In
+            values:
+            - {{NODEPOOL}}
+  containers:
+  - image: {{REGISTRY_URL}}/library/alpine:latest
+    name: {{ORGANIZATION_ID}}-frontal-nginx-synchro
+    command: [ "/bin/sh", "-c" ]
+    args: 
+      - apk add rsync;
+        apk add --no-cache openssh;
+        ssh-keygen -A;
+        /usr/sbin/sshd -D;
+    ports:
+    - containerPort: 22
+      name: sshd
+    volumeMounts:
+    - name: {{ORGANIZATION_ID}}-frontal-nginx-synchro-persistent-storage
+      mountPath: /mnt/data/{{ORGANIZATION_ID}}/frontal/
+    - name: {{ORGANIZATION_ID}}-frontal-nginx-synchro-authorized-keys
+      mountPath: /root/.ssh/authorized_keys
+      subPath: authorized_keys
+  volumes:
+  - name: {{ORGANIZATION_ID}}-frontal-nginx-synchro-persistent-storage
+    hostPath:
+      path: /mnt/data/{{ORGANIZATION_ID}}/frontal/
+      type: DirectoryOrCreate
+  - name: {{ORGANIZATION_ID}}-frontal-nginx-synchro-authorized-keys
+    configMap:
+      name: {{ORGANIZATION_ID}}-frontal-nginx-synchro-config

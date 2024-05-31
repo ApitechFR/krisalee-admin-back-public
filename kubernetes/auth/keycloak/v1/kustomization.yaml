@@ -1,0 +1,12 @@
+resources:
+  # Keycloak
+  - keycloak/app.yaml
+  - keycloak/postgresql.yaml
+  - keycloak/secrets.yaml
+  # Shlink
+  - shlink/app.yaml
+  - shlink/postgresql.yaml
+  - shlink/secrets.yaml
+  #Krisalee-user-management
+  - krisalee-user-management/app.yaml
+  - krisalee-user-management/back.yaml

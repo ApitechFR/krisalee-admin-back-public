@@ -1,0 +1,83 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ORGANIZATION_ID}}-auth-shlink-app
+  labels:
+    app: {{ORGANIZATION_ID}}-auth-shlink-app
+spec:
+  selector:
+    app: {{ORGANIZATION_ID}}-auth-shlink-app
+  ports:
+    - name: http
+      port: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ORGANIZATION_ID}}-auth-shlink-app
+  labels:
+    app: {{ORGANIZATION_ID}}-auth-shlink-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ORGANIZATION_ID}}-auth-shlink-app
+  template:
+    metadata:
+      labels:
+        app: {{ORGANIZATION_ID}}-auth-shlink-app
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: nodepool
+                    operator: In
+                    values:
+                      - {{NODEPOOL}}
+      containers:
+        - name: {{ORGANIZATION_ID}}-auth-shlink-app
+          image: {{REGISTRY_URL}}/shlinkio/shlink:3.6.0
+          env:
+            # Shlink URLs configuration
+            - name: DEFAULT_DOMAIN
+              value: auth.krisalee.joona.fr
+            - name: BASE_PATH
+              value: /link
+            - name: IS_HTTPS_ENABLED
+              value: 'true'
+            # Shlink database configuration
+            # TODO move to ConfigMap
+            - name: DB_DRIVER
+              value: postgres
+            - name: DB_HOST
+              value: {{ORGANIZATION_ID}}-auth-shlink-postgresql
+            - name: DB_NAME
+              value: shlink
+            # Shlink database credentials
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ORGANIZATION_ID}}-auth-shlink-secrets
+                  key: postgresql-user
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ORGANIZATION_ID}}-auth-shlink-secrets
+                  key: postgresql-password
+            # Shlink options configuration
+            #- name: DEFAULT_SHORT_CODES_LENGTH
+            #  value: 5
+            - name: SHORT_URL_TRAILING_SLASH
+              value: 'true'
+            - name: TIMEZONE
+              value: 'Europe/Paris'
+          ports:
+            - name: http
+              containerPort: 8080
+          # readinessProbe:
+          #   httpGet:
+          #     path: /link
+          #     port: 8080

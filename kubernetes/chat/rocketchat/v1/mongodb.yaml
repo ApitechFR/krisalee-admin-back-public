@@ -1,0 +1,78 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ORGANIZATION_ID}}-chat-rocketchat-mongodb
+  labels:
+    app: {{ORGANIZATION_ID}}-chat-rocketchat-mongodb
+spec:
+  ports:
+    - port: 27017
+      name: mongodb
+      protocol: TCP
+  selector:
+    app: {{ORGANIZATION_ID}}-chat-rocketchat-mongodb
+    tier: mongodb
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ORGANIZATION_ID}}-chat-rocketchat-mongodb
+  labels:
+    app: {{ORGANIZATION_ID}}-chat-rocketchat-mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ORGANIZATION_ID}}-chat-rocketchat-mongodb
+      tier: mongodb
+  template:
+    metadata:
+      labels:
+        app: {{ORGANIZATION_ID}}-chat-rocketchat-mongodb
+        tier: mongodb
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nodepool
+                operator: In
+                values:
+                - {{NODEPOOL}}
+      containers:
+      - image: {{REGISTRY_URL}}/library/mongo:6.0.8
+        command:
+          - mongod
+          - "--bind_ip_all"
+          - "--replSet"
+          - rs0
+        name: mongodb
+        env:
+          - name: MONGO_INITDB_ROOT_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: {{ORGANIZATION_ID}}-chat-rocketchat-secrets
+                key: mongodb-user
+          - name: MONGO_INITDB_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ORGANIZATION_ID}}-chat-rocketchat-secrets
+                key: mongodb-password
+          - name: MONGO_INITDB_DATABASE
+            valueFrom:
+              secretKeyRef:
+                name: {{ORGANIZATION_ID}}-chat-rocketchat-secrets
+                key: mongodb-db
+        ports:
+          - containerPort: 27017
+            name: mongodb
+        volumeMounts:
+          - name: {{ORGANIZATION_ID}}-chat-rocketchat-mongodb-persistent-storage
+            mountPath: /data/db
+      volumes:
+        - name: {{ORGANIZATION_ID}}-chat-rocketchat-mongodb-persistent-storage
+          hostPath:
+            path: /mnt/data/{{ORGANIZATION_ID}}/chat/rocketchat/mongodb          
+            type: DirectoryOrCreate

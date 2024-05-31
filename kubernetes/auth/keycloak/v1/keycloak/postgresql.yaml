@@ -1,0 +1,74 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ORGANIZATION_ID}}-auth-keycloak-postgresql
+  labels:
+    service: {{ORGANIZATION_ID}}-auth-keycloak-postgresql
+spec:
+  # type: NodePort
+  ports:
+  - port: 5432
+    protocol: TCP
+  selector:
+    service: {{ORGANIZATION_ID}}-auth-keycloak-postgresql
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ORGANIZATION_ID}}-auth-keycloak-postgresql
+  labels:
+    service: {{ORGANIZATION_ID}}-auth-keycloak-postgresql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: {{ORGANIZATION_ID}}-auth-keycloak-postgresql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        service: {{ORGANIZATION_ID}}-auth-keycloak-postgresql
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nodepool
+                operator: In
+                values:
+                - {{NODEPOOL}}
+      containers:
+      - name: {{ORGANIZATION_ID}}-auth-keycloak-postgresql
+        image: {{REGISTRY_URL}}/library/postgres:15.2-alpine3.17
+        imagePullPolicy: ""
+        env:
+        # @see https://github.com/docker-library/postgres/issues/696#issuecomment-597372188
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        - name: postgresql_DB
+          value: keycloak
+        - name: postgresql_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ORGANIZATION_ID}}-auth-keycloak-secrets
+              key: postgresql-user
+        - name: postgresql_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ORGANIZATION_ID}}-auth-keycloak-secrets
+              key: postgresql-password
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: keycloak-postgresql-volume
+      restartPolicy: Always
+      serviceAccountName: ""
+      volumes:
+      - name: keycloak-postgresql-volume
+        hostPath:
+          path: /mnt/data/{{ORGANIZATION_ID}}/auth/keycloak/postgresql
+          type: DirectoryOrCreate

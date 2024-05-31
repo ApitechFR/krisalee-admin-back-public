@@ -1,0 +1,74 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ORGANIZATION_ID}}-auth-shlink-postgresql
+  labels:
+    service: {{ORGANIZATION_ID}}-auth-shlink-postgresql
+spec:
+  # type: NodePort
+  ports:
+  - port: 5432
+    protocol: TCP
+  selector:
+    service: {{ORGANIZATION_ID}}-auth-shlink-postgresql
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ORGANIZATION_ID}}-auth-shlink-postgresql
+  labels:
+    service: {{ORGANIZATION_ID}}-auth-shlink-postgresql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: {{ORGANIZATION_ID}}-auth-shlink-postgresql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        service: {{ORGANIZATION_ID}}-auth-shlink-postgresql
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nodepool
+                operator: In
+                values:
+                - {{NODEPOOL}}
+      containers:
+      - name: {{ORGANIZATION_ID}}-auth-shlink-postgresql
+        image: {{REGISTRY_URL}}/library/postgres:15.2-alpine3.17
+        imagePullPolicy: ""
+        env:
+        # @see https://github.com/docker-library/postgres/issues/696#issuecomment-597372188
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        - name: POSTGRES_DB #postgresql_DB
+          value: shlink
+        - name: POSTGRES_USER #postgresql_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ORGANIZATION_ID}}-auth-shlink-secrets
+              key: postgresql-user
+        - name: POSTGRES_PASSWORD #postgresql_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ORGANIZATION_ID}}-auth-shlink-secrets
+              key: postgresql-password
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+        - mountPath: /var/lib/postgresql/data
+          name: shlink-postgresql-volume
+      restartPolicy: Always
+      serviceAccountName: ""
+      volumes:
+      - name: shlink-postgresql-volume
+        hostPath:
+          path: /mnt/data/{{ORGANIZATION_ID}}/auth/shlink/postgresql
+          type: DirectoryOrCreate

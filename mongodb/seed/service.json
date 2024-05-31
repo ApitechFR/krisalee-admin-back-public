@@ -1,0 +1,2 @@
+{"_id":{"$oid":"6571dbec1d8438003e5ca019"},"name":"Chat","description":"Service Chat","service_id":"chat","create_date":{"$date":"2023-12-07T14:51:24.648Z"},"update_date":null}
+{"_id":{"$oid":"6571dc0231569d0044644df8"},"name":"Drive","description":"Service Drive","service_id":"drive","create_date":{"$date":"2023-12-07T14:51:46.747Z"},"update_date":null}

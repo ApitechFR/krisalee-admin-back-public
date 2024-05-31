@@ -1,0 +1,50 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ORGANIZATION_ID}}-frontal-letsencrypt-drive-nextcloud-job
+spec:
+  template:
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nodepool
+                operator: In
+                values:
+                - {{NODEPOOL}}
+      containers:
+      - name: certbot
+        image: {{REGISTRY_URL}}/certbot/certbot
+        command: ["certbot"]
+        args: [
+          "certonly", 
+          "--webroot", 
+          "--webroot-path", "/var/www/letsencrypt/",
+          "--preferred-challenges", "http",
+          "--non-interactive",
+          "--agree-tos",
+          "-m florian.forest@apitech.fr", 
+          "--debug",
+          "-v",
+          "--force-renewal",
+          "-d", "document.krisalee.joona.fr"
+        ]
+        volumeMounts:
+        - mountPath: /etc/letsencrypt/
+          name: letsencrypt-persistent-storage
+        - mountPath: /var/www/letsencrypt
+          name: letsencrypt-acme-challenge-persistent-storage
+      volumes:
+      - name: letsencrypt-persistent-storage
+        hostPath:
+          path: /mnt/data/{{ORGANIZATION_ID}}/frontal/letsencrypt/
+          type: DirectoryOrCreate
+      - name: letsencrypt-acme-challenge-persistent-storage
+        hostPath:
+          path: /tmp/letsencrypt-acme-challenge
+          type: DirectoryOrCreate
+      restartPolicy: Never
+  backoffLimit: 0 #par défaut 6

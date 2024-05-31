@@ -1,0 +1,3 @@
+{"_id":{"$oid":"64dd8b0dc756622033144446"},"name":"Survie","description":"Tous les utilisateurs seront averti par SMS","mode_id":"survie",default:true}
+{"_id":{"$oid":"64dd8c0069eaf5201db68bea"},"name":"Exercice","description":"Les utilisateurs déclarés pour exercice seront avertis par SMS","mode_id":"exercice",default:false}
+{"_id":{"$oid":"64dd8eb2d496d42185122bea"},"name":"Pré-chauffe","description":"Les services seront lancés mais les utilisateurs ne seront pas avertis par SMS","mode_id":"prechauffe",default:false}

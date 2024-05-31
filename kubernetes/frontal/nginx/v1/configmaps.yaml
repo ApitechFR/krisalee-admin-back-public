@@ -1,0 +1,535 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ORGANIZATION_ID}}-frontal-nginx-configmap
+data:
+  nginx.conf: |
+    user  nginx;
+    worker_processes  auto;
+
+    error_log  /var/log/nginx/error.log notice;
+    pid        /var/run/nginx.pid;
+
+
+    events {
+        worker_connections  1024;
+    }
+
+    http {
+        include       /etc/nginx/mime.types;
+        default_type  application/octet-stream;
+
+        # Used to avoid 502 error in Keycloak
+        proxy_buffer_size   128k;
+        proxy_buffers   4 256k;
+        proxy_busy_buffers_size   256k;
+
+        log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                          '$status $body_bytes_sent "$http_referer" '
+                          '"$http_user_agent" "$http_x_forwarded_for"';
+
+        access_log  /var/log/nginx/access.log  main;
+
+        sendfile        on;
+        #tcp_nopush     on;
+
+        keepalive_timeout  65;
+
+        #gzip  on;
+
+        include /etc/nginx/conf.d/*.conf;
+    }
+
+    # stream {
+    #   resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+
+    #   upstream backend_smtp {
+    #       server {{ORGANIZATION_ID}}-mail-mailserver-app.default.svc.cluster.local:25;
+    #   }
+
+    #   server {
+    #       listen 25;
+    #       proxy_pass backend_smtp;
+    #       # proxy_set_header  Host  $host;  [emerg] 1#1: "proxy_set_header" directive is not allowed here in /etc/nginx/nginx.conf:47
+    #       # proxy_set_header  X-Real-IP $remote_addr;
+          
+    #       #proxy_protocol    on;
+    #       #set_real_ip_from  $proxy_protocol_addr;
+          
+    #       #proxy_bind $remote_addr transparent;
+    #       #[error] 20#20: *18 upstream timed out (110: Connection timed out) while connecting to upstream, client: 141.94.214.154, server: 0.0.0.0:25, upstream: "10.3.47.120:25", bytes from/to client:0/0, bytes from/to upstream:0/0
+    #   }
+
+    #   server {
+    #       listen 465;
+    #       proxy_pass {{ORGANIZATION_ID}}-mail-mailserver-app.default.svc.cluster.local:465;
+    #   }
+    #   server {
+    #       listen 587;
+    #       proxy_pass {{ORGANIZATION_ID}}-mail-mailserver-app.default.svc.cluster.local:587;
+    #   }
+    #   server {
+    #       listen 993;
+    #       proxy_pass {{ORGANIZATION_ID}}-mail-mailserver-app.default.svc.cluster.local:993;
+    #   }
+    # }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ORGANIZATION_ID}}-frontal-nginx-http-configmap
+data:
+  default_https.conf: |
+    server {
+      listen 443 ssl;
+
+      root /usr/share/nginx/html;
+      index index.html;
+
+      server_name localhost;
+      ssl_certificate /etc/nginx/ssl/nginx.crt;
+      ssl_certificate_key /etc/nginx/ssl/nginx.key; 
+      ssl_session_timeout 1d;
+      ssl_session_cache shared:SSL:50m;
+      ssl_session_tickets off;
+      # modern configuration. tweak to your needs.
+      ssl_protocols TLSv1.2;
+      ssl_ciphers 'ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256';
+      ssl_prefer_server_ciphers on; 
+      # HSTS (ngx_http_headers_module is required) (15768000 seconds = 6 months)
+      add_header Strict-Transport-Security max-age=15768000;
+      # OCSP Stapling ---
+      # fetch OCSP records from URL in ssl_certificate and cache them
+      ssl_stapling on;
+      ssl_stapling_verify on;
+      location / {
+              try_files $uri $uri/ =404;
+      }
+    }
+  default_http.conf: |
+    server {
+      listen 80 default_server;
+      root /usr/share/nginx/html;
+      location ^~ /.well-known/acme-challenge/ {
+        default_type "text/plain";
+        root  /var/www/letsencrypt;
+        break;
+      }
+    }
+  home.conf: |
+    server {
+      listen 80;
+      server_name krisalee.joona.fr;
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+      location ^~ /.well-known/acme-challenge/ {
+        default_type "text/plain";
+        root  /var/www/letsencrypt;
+        break;
+      }
+      location / {
+        return 301 https://$host$request_uri;
+      }
+    }
+    server {
+      listen 443 ssl;
+      server_name krisalee.joona.fr;
+
+      ssl_certificate /etc/nginx/ssl/live/krisalee.joona.fr/fullchain.pem;
+      ssl_certificate_key /etc/nginx/ssl/live/krisalee.joona.fr/privkey.pem; 
+      ssl_session_timeout 1d;
+      ssl_session_cache shared:SSL:50m;
+      ssl_session_tickets off;
+      # modern configuration. tweak to your needs.
+      ssl_protocols TLSv1.2;
+      ssl_ciphers 'ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256';
+      ssl_prefer_server_ciphers on; 
+      # HSTS (ngx_http_headers_module is required) (15768000 seconds = 6 months)
+      add_header Strict-Transport-Security max-age=15768000;
+      # OCSP Stapling ---
+      # fetch OCSP records from URL in ssl_certificate and cache them
+      ssl_stapling on;
+      ssl_stapling_verify on;
+
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+      
+      location / {
+        set $url {{ORGANIZATION_ID}}-auth-krisalee-user-management-app.default.svc.cluster.local;
+        proxy_pass http://$url;
+        proxy_http_version 1.1;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Host $http_host;
+
+        # Pour que wordpress soit heureux
+        proxy_set_header X-Forwarded-Proto https;
+      }
+
+      location ~ ^/api/(.*)$ {
+        set $url {{ORGANIZATION_ID}}-auth-krisalee-user-management-back.default.svc.cluster.local;
+        proxy_pass http://$url:3000/$1;
+        proxy_http_version 1.1;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Host $http_host;
+
+        # Pour que wordpress soit heureux
+        proxy_set_header X-Forwarded-Proto https;
+      }
+    }
+  intranet.conf: |
+    server {
+      listen 80;
+      server_name site-interne.krisalee.joona.fr;
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+      location ^~ /.well-known/acme-challenge/ {
+        default_type "text/plain";
+        root  /var/www/letsencrypt;
+        break;
+      }
+      location / {
+        return 301 https://$host$request_uri;
+      }
+    }
+    server {
+      listen 443 ssl;
+      server_name site-interne.krisalee.joona.fr;
+
+      ssl_certificate /etc/nginx/ssl/live/site-interne.krisalee.joona.fr/fullchain.pem;
+      ssl_certificate_key /etc/nginx/ssl/live/site-interne.krisalee.joona.fr/privkey.pem; 
+      ssl_session_timeout 1d;
+      ssl_session_cache shared:SSL:50m;
+      ssl_session_tickets off;
+      # modern configuration. tweak to your needs.
+      ssl_protocols TLSv1.2;
+      ssl_ciphers 'ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256';
+      ssl_prefer_server_ciphers on; 
+      # HSTS (ngx_http_headers_module is required) (15768000 seconds = 6 months)
+      add_header Strict-Transport-Security max-age=15768000;
+      # OCSP Stapling ---
+      # fetch OCSP records from URL in ssl_certificate and cache them
+      ssl_stapling on;
+      ssl_stapling_verify on;
+
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+      
+      location / {
+        set $url {{ORGANIZATION_ID}}-intranet-wordpress-app.default.svc.cluster.local;
+        proxy_pass http://$url;
+        proxy_http_version 1.1;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Host $http_host;
+
+        # Pour que wordpress soit heureux
+        proxy_set_header X-Forwarded-Proto https;
+      }
+    }
+  extranet.conf: |
+    server {
+      listen 80;
+      server_name site-externe.krisalee.joona.fr;
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+      location ^~ /.well-known/acme-challenge/ {
+        default_type "text/plain";
+        root  /var/www/letsencrypt;
+        break;
+      }
+      location / {
+        return 301 https://$host$request_uri;
+      }
+    }
+    server {
+      listen 443 ssl;
+      server_name site-externe.krisalee.joona.fr;
+
+      ssl_certificate /etc/nginx/ssl/live/site-externe.krisalee.joona.fr/fullchain.pem;
+      ssl_certificate_key /etc/nginx/ssl/live/site-externe.krisalee.joona.fr/privkey.pem; 
+      ssl_session_timeout 1d;
+      ssl_session_cache shared:SSL:50m;
+      ssl_session_tickets off;
+      # modern configuration. tweak to your needs.
+      ssl_protocols TLSv1.2;
+      ssl_ciphers 'ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256';
+      ssl_prefer_server_ciphers on; 
+      # HSTS (ngx_http_headers_module is required) (15768000 seconds = 6 months)
+      add_header Strict-Transport-Security max-age=15768000;
+      # OCSP Stapling ---
+      # fetch OCSP records from URL in ssl_certificate and cache them
+      ssl_stapling on;
+      ssl_stapling_verify on;
+
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+      
+      location / {
+        set $url {{ORGANIZATION_ID}}-extranet-wordpress-app.default.svc.cluster.local;
+        proxy_pass http://$url;
+        proxy_http_version 1.1;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Host $http_host;
+
+        # Pour que wordpress soit heureux
+        proxy_set_header X-Forwarded-Proto https;
+      }
+    }
+  roundcube.conf: |
+    server {
+      listen 80;
+      server_name webmail.krisalee.joona.fr;
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+      location ^~ /.well-known/acme-challenge/ {
+        default_type "text/plain";
+        root  /var/www/letsencrypt;
+        break;
+      }
+      location / {
+        return 301 https://$host$request_uri;
+      }
+    }
+    server {
+      listen 443 ssl;
+      server_name webmail.krisalee.joona.fr;
+
+      ssl_certificate /etc/nginx/ssl/live/webmail.krisalee.joona.fr/fullchain.pem;
+      ssl_certificate_key /etc/nginx/ssl/live/webmail.krisalee.joona.fr/privkey.pem; 
+      ssl_session_timeout 1d;
+      ssl_session_cache shared:SSL:50m;
+      ssl_session_tickets off;
+      # modern configuration. tweak to your needs.
+      ssl_protocols TLSv1.2;
+      ssl_ciphers 'ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256';
+      ssl_prefer_server_ciphers on; 
+      # HSTS (ngx_http_headers_module is required) (15768000 seconds = 6 months)
+      add_header Strict-Transport-Security max-age=15768000;
+      # OCSP Stapling ---
+      # fetch OCSP records from URL in ssl_certificate and cache them
+      ssl_stapling on;
+      ssl_stapling_verify on;
+
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+      
+      location / {
+        set $url {{ORGANIZATION_ID}}-mail-roundcube-nginx.default.svc.cluster.local;
+        proxy_pass http://$url;
+        proxy_http_version 1.1;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Host $http_host;
+      }
+    }
+  keycloak.conf: |
+    server {
+      listen 80;
+      server_name auth.krisalee.joona.fr;
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+      location ^~ /.well-known/acme-challenge/ {
+        default_type "text/plain";
+        root  /var/www/letsencrypt;
+        break;
+      }
+      location / {
+        return 301 https://$host$request_uri;
+      }
+    }
+    server {
+      listen 443 ssl;
+      server_name auth.krisalee.joona.fr;
+
+      ssl_certificate /etc/nginx/ssl/live/auth.krisalee.joona.fr/fullchain.pem;
+      ssl_certificate_key /etc/nginx/ssl/live/auth.krisalee.joona.fr/privkey.pem; 
+      ssl_session_timeout 1d;
+      ssl_session_cache shared:SSL:50m;
+      ssl_session_tickets off;
+      # modern configuration. tweak to your needs.
+      ssl_protocols TLSv1.2;
+      ssl_ciphers 'ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256';
+      ssl_prefer_server_ciphers on; 
+      # HSTS (ngx_http_headers_module is required) (15768000 seconds = 6 months)
+      add_header Strict-Transport-Security max-age=15768000;
+      # OCSP Stapling ---
+      # fetch OCSP records from URL in ssl_certificate and cache them
+      ssl_stapling on;
+      ssl_stapling_verify on;
+
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+      
+      location /link {
+        set $url {{ORGANIZATION_ID}}-auth-shlink-app.default.svc.cluster.local;
+        proxy_pass http://$url:8080;
+        proxy_http_version 1.1;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Host $http_host;
+      }
+      
+      location / {
+        set $url {{ORGANIZATION_ID}}-auth-keycloak-app.default.svc.cluster.local;
+        proxy_pass http://$url:8080;
+        proxy_http_version 1.1;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Host $http_host;
+
+        # Pour que keycloak soit heureux
+        proxy_set_header X-Forwarded-Proto https; 
+      }
+    }
+  nextcloud.conf: |
+    server {
+      listen 80;
+      server_name document.krisalee.joona.fr;
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+      location ^~ /.well-known/acme-challenge/ {
+        default_type "text/plain";
+        root  /var/www/letsencrypt;
+        break;
+      }
+      location / {
+        return 301 https://$host$request_uri;
+      }
+    }
+    server {
+      listen 443 ssl;
+      server_name document.krisalee.joona.fr;
+
+      ssl_certificate /etc/nginx/ssl/live/document.krisalee.joona.fr/fullchain.pem;
+      ssl_certificate_key /etc/nginx/ssl/live/document.krisalee.joona.fr/privkey.pem; 
+      ssl_session_timeout 1d;
+      ssl_session_cache shared:SSL:50m;
+      ssl_session_tickets off;
+      # modern configuration. tweak to your needs.
+      ssl_protocols TLSv1.2;
+      ssl_ciphers 'ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256';
+      ssl_prefer_server_ciphers on; 
+      # HSTS (ngx_http_headers_module is required) (15768000 seconds = 6 months)
+      add_header Strict-Transport-Security max-age=15768000;
+      # OCSP Stapling ---
+      # fetch OCSP records from URL in ssl_certificate and cache them
+      ssl_stapling on;
+      ssl_stapling_verify on;
+
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+
+      location / {
+        set $url {{ORGANIZATION_ID}}-drive-nextcloud-app.default.svc.cluster.local;
+        proxy_pass http://$url;
+        proxy_http_version 1.1;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Host $http_host;
+
+        # Pour que nextcloud soit heureux
+        proxy_set_header X-Forwarded-Proto https;
+      }
+    }
+  onlyoffice.conf: |
+    map $http_host $this_host {
+        "" $host;
+        default $http_host;
+    }
+
+    map $http_x_forwarded_proto $the_scheme {
+        default $http_x_forwarded_proto;
+        "" $scheme;
+    }
+
+    map $http_x_forwarded_host $the_host {
+        default $http_x_forwarded_host;
+        "" $this_host;
+    }
+
+    map $http_upgrade $proxy_connection {
+      default upgrade;
+      "" close;
+    }
+
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $proxy_connection;
+    proxy_set_header X-Forwarded-Host $the_host;
+    proxy_set_header X-Forwarded-Proto $the_scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+    server {
+      listen 80;
+      server_name onlyoffice.krisalee.dev.joona.fr;
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+      location ^~ /.well-known/acme-challenge/ {
+        default_type "text/plain";
+        root  /var/www/letsencrypt;
+        break;
+      }
+      location / {
+        return 301 https://$host$request_uri;
+      }
+    }
+    server {
+      listen 443 ssl;
+      server_name onlyoffice.krisalee.dev.joona.fr;
+
+      ssl_certificate /etc/nginx/ssl/live/onlyoffice.krisalee.dev.joona.fr/fullchain.pem;
+      ssl_certificate_key /etc/nginx/ssl/live/onlyoffice.krisalee.dev.joona.fr/privkey.pem; 
+      ssl_session_timeout 1d;
+      ssl_session_cache shared:SSL:50m;
+      ssl_session_tickets off;
+      # modern configuration. tweak to your needs.
+      ssl_protocols TLSv1.2;
+      ssl_ciphers 'ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256';
+      ssl_prefer_server_ciphers on; 
+      # HSTS (ngx_http_headers_module is required) (15768000 seconds = 6 months)
+      add_header Strict-Transport-Security max-age=15768000;
+      # OCSP Stapling ---
+      # fetch OCSP records from URL in ssl_certificate and cache them
+      ssl_stapling on;
+      ssl_stapling_verify on;
+
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+
+      location / {
+        set $url {{ORGANIZATION_ID}}-drive-onlyoffice-app.default.svc.cluster.local;
+        proxy_pass http://$url;
+        proxy_http_version 1.1;
+      }
+    }
+  chat.conf: |
+    server {
+      listen 80;
+      server_name chat.krisalee.dev.joona.fr;
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+      location ^~ /.well-known/acme-challenge/ {
+        default_type "text/plain";
+        root  /var/www/letsencrypt;
+        break;
+      }
+      location / {
+        return 301 https://$host$request_uri;
+      }
+    }
+    server {
+      listen 443 ssl;
+      server_name chat.krisalee.dev.joona.fr;
+
+      ssl_certificate /etc/nginx/ssl/live/chat.krisalee.dev.joona.fr/fullchain.pem;
+      ssl_certificate_key /etc/nginx/ssl/live/chat.krisalee.dev.joona.fr/privkey.pem; 
+      ssl_session_timeout 1d;
+      ssl_session_cache shared:SSL:50m;
+      ssl_session_tickets off;
+      # modern configuration. tweak to your needs.
+      ssl_protocols TLSv1.2;
+      ssl_ciphers 'ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256';
+      ssl_prefer_server_ciphers on; 
+      # HSTS (ngx_http_headers_module is required) (15768000 seconds = 6 months)
+      add_header Strict-Transport-Security max-age=15768000;
+      # OCSP Stapling ---
+      # fetch OCSP records from URL in ssl_certificate and cache them
+      ssl_stapling on;
+      ssl_stapling_verify on;
+
+      resolver kube-dns.kube-system.svc.cluster.local valid=10s;
+
+      location / {
+        set $url {{ORGANIZATION_ID}}-chat-rocketchat-app.default.svc.cluster.local;
+        proxy_pass http://$url:3000;
+        proxy_http_version 1.1;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header Host $http_host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_buffering off;
+
+        # Pour que nextcloud soit heureux
+        proxy_set_header X-Forwarded-Proto https;
+      }
+    }

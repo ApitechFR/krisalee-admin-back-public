@@ -1,0 +1,77 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ORGANIZATION_ID}}-drive-nextcloud-mariadb
+  labels:
+    app: {{ORGANIZATION_ID}}-drive-nextcloud-mariadb
+spec:
+  ports:
+    - port: 3306
+      name: mariadb
+      protocol: TCP
+  selector:
+    app: {{ORGANIZATION_ID}}-drive-nextcloud-mariadb
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ORGANIZATION_ID}}-drive-nextcloud-mariadb
+  labels:
+    app: {{ORGANIZATION_ID}}-drive-nextcloud-mariadb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ORGANIZATION_ID}}-drive-nextcloud-mariadb
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: {{ORGANIZATION_ID}}-drive-nextcloud-mariadb
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nodepool
+                operator: In
+                values:
+                - {{NODEPOOL}}
+      containers:
+      - name: {{ORGANIZATION_ID}}-drive-nextcloud-mariadb
+        image: {{REGISTRY_URL}}/library/mariadb:10.7.8
+        args:
+          - --transaction-isolation=READ-COMMITTED
+          - --binlog-format=ROW
+          - --max-connections=1000
+        env:
+          - name: MYSQL_DATABASE
+            value: nextcloud
+          - name: MYSQL_USER
+            valueFrom:
+              secretKeyRef:
+                name: {{ORGANIZATION_ID}}-drive-nextcloud-secrets
+                key: mariadb-user
+          - name: MYSQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ORGANIZATION_ID}}-drive-nextcloud-secrets
+                key: mariadb-password
+          - name: MYSQL_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ORGANIZATION_ID}}-drive-nextcloud-secrets
+                key: mariadb-rootpassword
+        ports:
+          - containerPort: 3306
+        volumeMounts:
+          - name: {{ORGANIZATION_ID}}-drive-nextcloud-mariadb-volume
+            mountPath: /var/lib/mysql
+      volumes:
+      - name: {{ORGANIZATION_ID}}-drive-nextcloud-mariadb-volume
+        hostPath:
+          path: /mnt/data/{{ORGANIZATION_ID}}/drive/mariadb
+          type: DirectoryOrCreate

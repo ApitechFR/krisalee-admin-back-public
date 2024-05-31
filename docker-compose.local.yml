@@ -1,0 +1,136 @@
+
+#####
+# docker-compose pour développement en local
+#####
+
+version: '3'
+
+#networks:
+#default:
+#external:
+#name: external-example
+
+volumes:
+  mongodb_data_container:
+    driver: local
+  postgres_data:
+    driver: local
+  data-krisalee:
+    driver: local
+
+services:
+  #BDD Backend
+  mongo:
+    env_file: ./.env
+    build:
+      dockerfile: Dockerfile
+      context: ./mongodb
+    container_name: mongo
+    restart: always
+    # command: mongoimport --authenticationDatabase=admin --username=$DB_USERNAME --password=$DB_PASSWORD -c=service -d=$DB_NAME --file=services --drop
+    ports:
+      - 27017:27017
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=$DB_USERNAME
+      - MONGO_INITDB_ROOT_PASSWORD=$DB_PASSWORD
+    volumes:
+      - mongodb_data_container:/data/db
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=$DB_USERNAME
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=$DB_PASSWORD
+      - ME_CONFIG_MONGODB_URL=mongodb://$DB_USERNAME:$DB_PASSWORD@mongo:27017/
+    depends_on:
+      - mongo
+
+  # frontend:
+  #   restart: always
+  #   container_name: krisalee-frontend
+  #   image: krisalee-frontend:latest
+  #   ports:
+  #     - 8083:8080
+
+  backend:
+    env_file: ./.env
+    restart: always
+    build:
+      dockerfile: Dockerfile
+      context: .
+    image: krisalee-backend:latest
+    container_name: krisalee-backend
+    ports:
+      - 3000:3000
+    depends_on:
+      - mongo
+      # - ssh
+    volumes:
+      - data-krisalee:$DATA_PATH
+      - $DIR/node_modules
+      - $PWD:/usr/src/app
+
+  backend-documenation:
+    restart: always
+    build:
+      dockerfile: Dockerfile.documentation
+      context: .
+    image: backend-documenation:latest
+    container_name: backend-documenation
+    ports:
+      - 3001:8080
+
+  # ssh:
+  #   env_file: ./.env
+  #   restart: always
+  #   build:
+  #     dockerfile: Dockerfile
+  #     context: ./openssh
+  #   container_name: ssh-krisalee
+  #   ports:
+  #     - $HOST_DATA_SSH_PORT:2222
+  #   command:
+  #     - /bin/sh
+  #     - -c
+  #     - apk add rsync;
+  #       apk add --no-cache openssh;
+  #       ssh-keygen -A;
+  #       ssh-keygen -t ed25519 -f /root/.ssh/id_ed25519 -N '';
+  #       cat /root/.ssh/id_ed25519.pub > /root/.ssh/authorized_keys;
+  #       rm -R $DATA_PATH/ssh;
+  #       cp -a /root/.ssh $DATA_PATH/ssh;
+  #       /usr/sbin/sshd -D -p 2222;
+  #   volumes:
+  #     - data-krisalee:$DATA_PATH
+
+  #Auth
+  # postgres:
+  #   restart: always
+  #   image: postgres
+  #   container_name: keycloak-postgres
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   environment:
+  #     POSTGRES_DB: keycloak
+  #     POSTGRES_USER: keycloak
+  #     POSTGRES_PASSWORD: 
+  # keycloak:
+  #   restart: always
+  #   image: jboss/keycloak
+  #   container_name: keycloak
+  #   environment:
+  #     DB_USER: keycloak
+  #     DB_PASSWORD: 
+  #     DB_VENDOR: POSTGRES
+  #     DB_ADDR: postgres
+  #     DB_DATABASE: keycloak
+  #     KEYCLOAK_USER: admin
+  #     KEYCLOAK_PASSWORD: 
+  #     KEYCLOAK_FRONTEND_URL: "https://admin.krisalee.joona.fr/auth"
+  #   ports:
+  #     - 8080:8080
+  #   depends_on:
+  #     - postgres
